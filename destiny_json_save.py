@@ -338,9 +338,9 @@ def get_attr_by_name(v, item, name):
             item[k] = []
         for i in socketEntries:
             for key in keys:
-                value = i.get(k)
+                value = i.get(key)
                 if value:
-                    item[k].append(str(value))
+                    item[key].append(str(value))
         for k in ['reusablePlugSetHash', 'randomizedPlugSetHash']:
             item[k] = ','.join(item[k])
 
@@ -426,7 +426,7 @@ def export_mongo_to_csv():
     '''
 
     cmd = '''
-    mongoexport -h 127.0.0.1 --port 27017 -d mydb -c {table_name} --query '' --fields="{columns_name}" --type=csv -o {output_file_path}/{output_file_name}.csv
+    mongoexport -h 127.0.0.1 --port 27017 -d mydb -c {table_name} --query "" --fields="{columns_name}" --type=csv -o {output_file_path}/{output_file_name}.csv
     '''
 
     for table_name in [
@@ -440,14 +440,17 @@ def export_mongo_to_csv():
         # special
         'DestinyInventoryItemDefinition_2',
     ]:
-        columns_name = ''
+        columns_name = []
         date_str = time.strftime("%Y%m%d", time.localtime(int(time.time())))
         output_file_name = '%s_%s' % (date_str, table_name)
 
         table_name_t = 'test_%s' % table_name
         r = db_game[table_name_t].find_one()
         for i in r:
-            columns_name += '%s,' % i
+            if i == '_id':
+                continue
+            columns_name.append(str(i))
+        columns_name = ','.join(columns_name)
 
         command = cmd.format(
             table_name=table_name_t, 
