@@ -45,7 +45,7 @@ def api_data(param=None):
 
     date_str = time.strftime("%Y%m%d", time.localtime(int(time.time())))
 
-    r = requests.get(url,headers=headers,timeout=15)
+    r = requests.get(url,headers=headers,timeout=15, verify=False)
 
     r_json = json.loads(r.content)
     try:
@@ -56,7 +56,7 @@ def api_data(param=None):
 
      
     url = 'https://www.bungie.net' + json_path
-    r = requests.get(url,headers=headers,timeout=10)
+    r = requests.get(url,headers=headers,timeout=10, verify=False)
 
     
     date_str = time.strftime("%Y%m%d", time.localtime(int(time.time())))
@@ -156,6 +156,7 @@ def save_data_into_mongo():
             'DestinyCollectibleDefinition',
             'DestinyPlugSetDefinition',
             'DestinySandboxPerkDefinition',
+            'DestinyStatDefinition',
         ]:
             continue
 
@@ -226,7 +227,8 @@ def arrange_data(name):
 
 
 def get_all_stats_key():
-    keys = set()
+    stats_keys = set()
+    statTypeHash_keys = set()
 
     name='DestinyInventoryItemDefinition'
     start_id = last_id = (db_game[name].find({}, {'_id': 1}).sort('_id', 1).limit(1)[0]['_id'])
@@ -242,24 +244,30 @@ def get_all_stats_key():
 
             v = i['value']
 
-            if not v.get('stats', {}):
-                continue
-
             stats = v.get('stats', {}).get('stats', {})
             for k in stats:
-                if k not in keys:
-                    keys.add(k)
+                if k not in stats_keys:
+                    stats_keys.add(k)
+
+            investmentStats = v.get('investmentStats', [])
+            for j in investmentStats:
+                statTypeHash = j.get('statTypeHash')
+                if not statTypeHash:
+                    continue
+                if statTypeHash not in statTypeHash_keys:
+                    statTypeHash_keys.add(statTypeHash)
             
         if count < limit:
             break
-    return list(keys)
+    return list(stats_keys), list(statTypeHash_keys)
 
 
 def sp_table1():
     name='DestinyInventoryItemDefinition'
 
-    keys = get_all_stats_key()
-    print '[keys]: ', keys
+    stats_keys, statTypeHash_keys = get_all_stats_key()
+    print '[stats_keys]: ', stats_keys
+    print '[statTypeHash_keys]: ', statTypeHash_keys
 
     total = 0
     fail_times = 0
@@ -281,6 +289,7 @@ def sp_table1():
 
             item = v['displayProperties']
             item['hash'] = str(v['hash'])
+            item['itemTypeDisplayName'] = v.get('itemTypeDisplayName', '')
 
             # get_attr_by_name(v, item, name)
             item['defaultDamageType'] = v.get('defaultDamageType', '')
@@ -297,8 +306,17 @@ def sp_table1():
             item['powerCapHash'] = ','.join(item['powerCapHash'])
 
             stats = v.get('stats', {}).get('stats', {})
-            for k in keys:
+            for k in stats_keys:
                 item[k] = stats.get(k, {}).get('value', '')
+
+            for k in statTypeHash_keys:
+                item[str(k)] = ''
+            investmentStats = v.get('investmentStats', [])
+            for j in investmentStats:
+                statTypeHash = str(j.get('statTypeHash', ''))
+                if not statTypeHash:
+                    continue
+                item[statTypeHash] = j.get('value', -1)
             
             db_game['test_%s_2'%name].update({'hash': item['hash']}, {'$set': item}, upsert=True)
         
@@ -332,6 +350,8 @@ def get_attr_by_name(v, item, name):
             item['socketCategoryHash'].append(str(hash_))
             item['socketIndexes'].append(indexes)
 
+        item['socketCategoryHash'] = ','.join(item['socketCategoryHash'])
+
         socketEntries = sockets.get('socketEntries', [])
         keys = ['singleInitialItemHash', 'reusablePlugSetHash', 'randomizedPlugSetHash']
         for k in keys:
@@ -339,7 +359,7 @@ def get_attr_by_name(v, item, name):
         for i in socketEntries:
             for key in keys:
                 value = i.get(key)
-                if value:
+                if value is not None:
                     item[key].append(str(value))
         for k in ['reusablePlugSetHash', 'randomizedPlugSetHash']:
             item[k] = ','.join(item[k])
@@ -437,6 +457,7 @@ def export_mongo_to_csv():
         'DestinyRecordDefinition',
         'DestinySandboxPerkDefinition',
         'DestinyVendorDefinition',
+
         # special
         'DestinyInventoryItemDefinition_2',
     ]:
@@ -509,5 +530,6 @@ def main(download=True, clear_db=True, save_data=True, arrange_data=True, export
 if __name__ == '__main__':
     print '[+] start'
     main()
+    # main(download=False, clear_db=True, save_data=True, arrange_data=True, export_csv=True)
     # main(download=False, clear_db=False, save_data=True, arrange_data=True, export_csv=True)
     print '[+] end'
