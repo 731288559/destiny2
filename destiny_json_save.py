@@ -284,8 +284,8 @@ def sp_table1():
 
             v = i['value']
 
-            if not v.get('stats', {}):
-                continue
+            # if not v.get('stats', {}):
+            #     continue
 
             item = v['displayProperties']
             item['hash'] = str(v['hash'])
@@ -321,6 +321,7 @@ def sp_table1():
             db_game['test_%s_2'%name].update({'hash': item['hash']}, {'$set': item}, upsert=True)
         
         total += count
+        print 'sp name:%s, count:%s, fail_times:%s' % (name, total, fail_times)
         if count < limit:
             break
             
@@ -534,6 +535,6 @@ def main(download=True, clear_db=True, save_data=True, arrange_data=True, export
 if __name__ == '__main__':
     print '[+] start'
     main()
-    # main(download=False, clear_db=True, save_data=True, arrange_data=True, export_csv=True)
-    # main(download=False, clear_db=False, save_data=True, arrange_data=True, export_csv=True)
+    # main(download=True, clear_db=True, save_data=True, arrange_data=False, export_csv=False)
+    # main(download=False, clear_db=False, save_data=False, arrange_data=True, export_csv=True)
     print '[+] end'
