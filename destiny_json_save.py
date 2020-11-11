@@ -376,8 +376,12 @@ def get_attr_by_name(v, item, name):
             for i in item['socketIndexes']:
                 l1 = []
                 for j in i:
-                    l1.append(item['singleInitialItemHash'][j])
-                l.append(','.join(l1))
+                    singleInitialItemHash = item['singleInitialItemHash'][j]
+                    if singleInitialItemHash == '0':
+                        continue
+                    l1.append(singleInitialItemHash)
+                if l1:
+                    l.append(','.join(l1))
             item['singleInitialItemHash_2'] = '|'.join(l)
         except:
             item['singleInitialItemHash_2'] = 'error'
