@@ -305,10 +305,6 @@ def sp_table1():
                 item['powerCapHash'].append(str(j.get('powerCapHash', '')))
             item['powerCapHash'] = ','.join(item['powerCapHash'])
 
-            stats = v.get('stats', {}).get('stats', {})
-            for k in stats_keys:
-                item[k] = stats.get(k, {}).get('value', '')
-
             for k in statTypeHash_keys:
                 item[str(k)] = ''
             investmentStats = v.get('investmentStats', [])
@@ -317,6 +313,11 @@ def sp_table1():
                 if not statTypeHash:
                     continue
                 item[statTypeHash] = j.get('value', -1)
+            
+            # 这个放在后面，防止相同值被investmentStats覆盖
+            stats = v.get('stats', {}).get('stats', {})
+            for k in stats_keys:
+                item[k] = stats.get(k, {}).get('value', '')
             
             db_game['test_%s_2'%name].update({'hash': item['hash']}, {'$set': item}, upsert=True)
         
