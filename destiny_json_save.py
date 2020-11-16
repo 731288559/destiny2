@@ -27,8 +27,6 @@ MONGO_LOCAL = 'mongodb://127.0.0.1:27017'
 conn = pymongo.MongoClient(MONGO_LOCAL)
 db_game = conn.mydb
 
-all_components = '100,101,102,103,104,105,200,201,202,203,204,205,300,301,302,303,304,305,306,307,308,400,401,402,500,600,700,800,900,1000'
-
 # json文件的存放路径
 JSON_DIR = '/Users/chenjiayu/Documents/test/destiny2_json'
 JSON_FILE_NAME = 'destiny_json_%s' % time.strftime("%Y%m%d", time.localtime(int(time.time())))
@@ -69,72 +67,6 @@ def api_data(param=None):
     print r.status_code
 
 
-def read_json():
-    f = open('%s/%s' % (JSON_DIR, JSON_FILE_NAME), mode='r')
-    context = f.read()
-
-    f.close()
-    # print 'json load begin'
-    r = json.loads(context)
-    # print 'json load end'
-
-    count = 1
-    category = ''
-    for i in r:
-        # print count,i,len(r[i])
-        count += 1
-
-        item_ids = ['590099826','3154740035','1926152773']
-        # item_ids = ['4136768282']
-        item_ids = ['737144025', '143442373', '4085212425']
-        item_ids = ['4172267910', '3666208348', '599007201', '354401740']
-        item_ids = ['2837207746', '4043523819', '1240592695', '2762071195']
-        item_ids = ['4230993599']
-        item_ids = ['4172267910', '3666208348', '599007201', '354401740', '2285418970']
-        item_ids = ['4136768282']
-        item_ids = ['1885944937', '1935470627', '1943323491', '3897883278', '392767087']
-        item_ids = ['4174481098', '4230993599'] # 两个钢铁女巫
-        item_ids = ['3558075535']  
-        item_ids = ['1001496800']
-
-        for item_id in item_ids:
-            if r[i].get(item_id):
-                print '\ngoal is in:', i, item_id
-                category = i
-                
-                goal = r[i][item_id]
-                try:
-                    name = goal['displayProperties']['name']
-                    print '1', name
-                    print '2', json.dumps(goal).decode('unicode-escape')
-                    print '3', json.dumps(goal['displayProperties']).decode('unicode-escape')
-                    print '\n\n'
-                except:
-                    print '4', json.dumps(goal).decode('unicode-escape')
-                    pass
-
-    category = 'DestinyItemCategoryDefinition'
-    if category:
-        cc = r[category]
-        # cat_dict(cc)
-
-        for i in cc:
-            if cc[i].get('displayProperties',{}).get('name','') == '塑钢强化模组':
-                print json.dumps(cc[i]).decode('unicode-escape')
-
-
-def cat_dict(dd):
-    count = 1
-    for i in dd:
-        print i, dd[i]['displayProperties'].get('name', 'No name')
-        print json.dumps(dd[i]).decode('unicode-escape'),'\n'
-        print 
-        count += 1
-        if count > 2:
-            # print '+++++++++++++++++++++++++++\n'
-            break
-
-
 def save_data_into_mongo():
     f = open('%s/%s' % (JSON_DIR, JSON_FILE_NAME), mode='r')
     context = f.read()
@@ -164,16 +96,16 @@ def save_data_into_mongo():
         for j in r[i]:
             single_item = r[i][j]
 
-            # DestinyVendorDefinition类存在key='BungieNet.Engine.Contract.Destiny.World.Definitions.IDestinyDisplayDefinition.displayProperties', 直接存入数据库会异常
+            # DestinyVendorDefinition类
+            # 存在key='BungieNet.Engine.Contract.Destiny.World.Definitions.IDestinyDisplayDefinition.displayProperties'
+            # 直接存入数据库会异常, 特殊处理
             value = single_item
             if i == 'DestinyVendorDefinition':
-                itemList = single_item.get('itemList', [])
-                if not itemList:
-                    continue
-                value = {'itemList': itemList, 'hash': single_item.get('hash', '')}
-                # print single_item
+                item_keys = single_item.keys()
+                for item_key in item_keys:
+                    if '.' in item_key:
+                        single_item.pop(item_key, '')
 
-            # db_game[i].update({'key': j}, {'$set':{'value': single_item}}, upsert=True)
             # 改为插入，每次运行都需要把之前的数据删掉
             item = {'key': j, 'value': value}
             try:
@@ -206,7 +138,13 @@ def arrange_data(name):
             if name == 'DestinyPlugSetDefinition':
                 item = {}
             else:
-                item = v.get('displayProperties', {})
+                displayProperties = v.get('displayProperties', {})
+                item = dict(
+                    icon = displayProperties.get('icon', ''),
+                    name = displayProperties.get('name', ''),
+                    description = displayProperties.get('description', '')
+                )
+                
             item['hash'] = str(v['hash'])
             
             flag = get_attr_by_name(v, item, name)
@@ -283,15 +221,11 @@ def sp_table1():
             count += 1
 
             v = i['value']
-
-            # if not v.get('stats', {}):
-            #     continue
-
+            
             item = v['displayProperties']
             item['hash'] = str(v['hash'])
             item['itemTypeDisplayName'] = v.get('itemTypeDisplayName', '')
 
-            # get_attr_by_name(v, item, name)
             item['defaultDamageType'] = v.get('defaultDamageType', '')
             equippingBlock = v.get('equippingBlock', {})
             item['ammoType'] = equippingBlock.get('ammoType', '')
@@ -424,15 +358,34 @@ def get_attr_by_name(v, item, name):
         item['description'] = lore['value']['displayProperties']['description']
     
     elif name == 'DestinyVendorDefinition':
-        itemList = v.get('itemList', [])
-        if not itemList:
-            return False
+        displayProperties = v.get('displayProperties', {})
+        item['name'] = displayProperties.get('name', '')
+        item['icon'] = displayProperties.get('icon', '')
+        item['description'] = displayProperties.get('description', '')
 
+        itemList = v.get('itemList', [])
         itemHashes = []
-        for j in itemList:
-            itemHash = j.get('itemHash')
+        for i in itemList:
+            itemHash = i.get('itemHash')
             itemHashes.append(str(itemHash))
-        item['itemHashes'] = itemHashes
+
+        categoryHashes = []
+        try:
+            categories = v.get('categories', [])
+            l2 = []
+            for i in categories:
+                categoryHash = i.get('categoryHash', -1)
+                categoryHashes.append(str(categoryHash))
+                l1 = []
+                vendorItemIndexes = i.get('vendorItemIndexes', [])
+                for j in vendorItemIndexes:
+                    l1.append(itemHashes[j])
+                if l1:
+                    l2.append(','.join(l1))
+            item['itemHashes_SPLIT'] = '|'.join(l2)
+        except:
+            item['itemHashes_SPLIT'] = 'error'
+        item['categoryHashes'] = ','.join(categoryHashes)
 
     elif name == 'DestinyLoreDefinition':
         if item['description'] == '':
