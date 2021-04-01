@@ -17,7 +17,7 @@ sys.setdefaultencoding('utf-8')
     （json的数据结构需要保证没有大的1变化）
     
     - json存到本地
-    - 清理mydb数据库
+    - 清理destiny2数据库
     - 将json简单解析存入mongo
     - 整理mongo数据，并把结果存入新的表
     - 把新的表导出为csv文件
@@ -25,7 +25,7 @@ sys.setdefaultencoding('utf-8')
 
 MONGO_LOCAL = 'mongodb://127.0.0.1:27017'
 conn = pymongo.MongoClient(MONGO_LOCAL)
-db_game = conn.mydb
+db_game = conn.destiny2
 
 # json文件的存放路径
 JSON_DIR = '/Users/chenjiayu/Documents/test/destiny2_json'
@@ -399,13 +399,13 @@ def get_attr_by_name(v, item, name):
 # A:  brew switch openssl 1.0.2s
 def export_mongo_to_csv():
     '''
-    mongoexport -h 127.0.0.1 --port 27017 -d mydb -c test_DestinyCollectibleDefinition 
+    mongoexport -h 127.0.0.1 --port 27017 -d destiny2 -c test_DestinyCollectibleDefinition 
     --query '' --fields="hash,name,description,icon,index,runOnlyAcquisitionRewardSite,itemHash,displayStyle,parentPresentationNodeHashes" 
     --csv -o ./DestinyCollectibleDefinition.csv
     '''
 
     cmd = '''
-    mongoexport -h 127.0.0.1 --port 27017 -d mydb -c {table_name} --query "" --fields="{columns_name}" --type=csv -o {output_file_path}/{output_file_name}.csv
+    mongoexport -h 127.0.0.1 --port 27017 -d destiny2 -c {table_name} --query "" --fields="{columns_name}" --type=csv -o {output_file_path}/{output_file_name}.csv
     '''
 
     for table_name in [
@@ -467,7 +467,7 @@ def main(download=True, clear_db=True, save_data=True, arrange_data=True, export
 
     if clear_db:
         # 清除数据库的旧内容
-        conn.drop_database('mydb')
+        conn.drop_database('destiny2')
         print 'clear db finish'
 
     if save_data:
